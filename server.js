@@ -3,6 +3,36 @@ const mysql2 = require("mysql2");
 const db = require("./db/connection");
 const cTable = require("console.table");
 
+// following 3 funcs for update employee
+
+const getEmployees = function () {
+  const sql = `SELECT CONCAT(first_name, ' ', last_name) AS employee, id as id FROM employee;`;
+
+  return db.promise().query(sql);
+};
+
+const getRoles = function () {
+  const sql = `SELECT name AS role, id AS id FROM role;`;
+
+  return db.promise().query(sql);
+};
+
+const updateEmployee = function (employee, role) {
+    const roleId = role.chooseRole;
+    const employeeId = employee.chooseEmployee;
+
+    const sql = `UPDATE employee SET role_id = ${roleId} WHERE id = ${employeeId};`
+
+    db.query(sql, (err, result) => {
+        if (err) {
+            console.error(err)
+            return;
+        }
+        console.log(`Changed role!`)
+        form();
+    })
+};
+
 const allDept = function () {
   const sql = `SELECT * FROM department;`;
 
@@ -186,39 +216,37 @@ const form = function () {
             });
           });
       } else if (answer.q === "Update an employee role") {
-      //
-        const sql = `SELECT 
-        first_name, 
-        last_name
-        FROM employee
-        ORDER BY last_name
-        FOR JSON AUTO`;
-    
-      db.query(sql, (err, result) => {
-        if (err) {
-          console.error(err);
-          return;
-        }
-        console.log(result);
-      });
-      //
-        // loop over employees and push them into an object to be added into choices array
-        // loop over roles and push them into an object to be added into second choices array
-        inquirer
-         .prompt([
-             {
-                 type: "list",
-                 name: "chooseEmployee",
-                 message: "Which employee's role would you like to update?",
-                 choices: employeeChoices
-             },
-             {
-                 type: "list",
-                 name: "chooseRole",
-                 message: "Select the role that you would like to assign this employee to",
-                 choices: roleChoices
-             }
-         ])
+        getEmployees().then(([employees]) => {
+          const employeeChoices = employees.map(({ employee, id }) => ({
+            name: `${employee}`,
+            value: `${id}`
+          }));
+
+          inquirer
+            .prompt({
+              type: "list",
+              name: "chooseEmployee",
+              message: "Which employee's role would you like to update?",
+              choices: employeeChoices,
+            })
+            .then((chosenEmployee) => {
+              let employee = chosenEmployee;
+              getRoles()
+                .then(([roles]) => {
+                  const roleChoices = roles.map(({ role, id }) => ({
+                    name: `${role}`,
+                    value: `${id}`
+                  }));
+                  inquirer.prompt({
+                    type: "list",
+                    name: "chooseRole",
+                    message:
+                      "Select the role that you would like to assign this employee to",
+                    choices: roleChoices,
+                  }).then(role => updateEmployee(employee, role));
+                })
+            });
+        });
       } else if (answer.q === "quit") {
         process.exit();
       }
